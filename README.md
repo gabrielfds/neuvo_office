@@ -96,7 +96,7 @@ This will:
   },
   "gateway": {
     "url": "ws://127.0.0.1:18789", // OpenClaw gateway WebSocket URL
-    "token": "your-gateway-token"   // Gateway auth token
+    "token": "your-gateway-token"   // See "Finding your gateway token" below
   },
   "agents": {
     "main": {
@@ -125,6 +125,23 @@ This will:
   }
 }
 ```
+
+### Finding Your Gateway Token
+
+Your gateway token is in your OpenClaw config file:
+
+```bash
+# Option 1: Read it directly
+cat ~/.openclaw/openclaw.json | grep -A2 '"auth"' | grep '"token"'
+
+# Option 2: Use jq
+jq '.gateway.auth.token' ~/.openclaw/openclaw.json
+
+# Option 3: Check the OpenClaw dashboard URL
+# When you open http://127.0.0.1:18789 in a browser, the token is shown on the connect page
+```
+
+Copy the token value into your `openclaw-office.config.json` under `gateway.token`.
 
 ### Environment Variables
 
