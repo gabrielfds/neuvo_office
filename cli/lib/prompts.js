@@ -74,7 +74,22 @@ export function buildPrompt(agents, style, customDescription) {
 }
 
 export function getTemplatePositions(agentCount) {
-  return TEMPLATE_POSITIONS.slice(0, agentCount);
+  const positions = [];
+  for (let i = 0; i < agentCount; i++) {
+    if (i < TEMPLATE_POSITIONS.length) {
+      positions.push(TEMPLATE_POSITIONS[i]);
+    } else {
+      // Generate positions for agents beyond the template list
+      // Distribute evenly across a grid
+      const row = Math.floor((i - TEMPLATE_POSITIONS.length) / 4);
+      const col = (i - TEMPLATE_POSITIONS.length) % 4;
+      positions.push({
+        x: 15 + col * 23,
+        y: 25 + row * 20,
+      });
+    }
+  }
+  return positions;
 }
 
 export { TEMPLATE_POSITIONS, DESK_POSITIONS };
