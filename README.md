@@ -17,6 +17,8 @@ It gives your AI agents a virtual office where you can watch them work in real-t
 
 ## Quick Start
 
+### 1. Install the Office dashboard
+
 ```bash
 git clone https://github.com/wickedapp/openclaw-office
 cd openclaw-office
@@ -29,12 +31,38 @@ npm start
 
 The dashboard runs on [http://localhost:4200](http://localhost:4200) by default.
 
-To use a custom port:
+### 2. Install the Notify plugin
+
+The [openclaw-kcc-notify](https://github.com/wickedapp/openclaw-kcc-notify) plugin bridges your OpenClaw gateway to the Office dashboard. **Without it, the dashboard won't receive any agent activity.**
+
 ```bash
-PORT=4201 npm start
+git clone https://github.com/wickedapp/openclaw-kcc-notify ~/.openclaw/extensions/kcc-notify
 ```
 
-> **No OpenClaw gateway yet?** That's fine — the dashboard works in standalone mode. You'll see the full UI with empty data. Connect a gateway later to see live agent activity.
+Add to your `~/.openclaw/openclaw.json`:
+
+```json
+{
+  "plugins": {
+    "allow": ["kcc-notify"],
+    "load": {
+      "paths": ["~/.openclaw/extensions/kcc-notify"]
+    },
+    "entries": {
+      "kcc-notify": {
+        "enabled": true
+      }
+    }
+  }
+}
+```
+
+Then restart OpenClaw:
+```bash
+openclaw gateway restart
+```
+
+> **No OpenClaw gateway yet?** That's fine — the dashboard works in standalone mode. You'll see the full UI with empty data. Connect a gateway and install the plugin later to see live agent activity.
 
 ### Interactive Setup (CLI Wizard)
 

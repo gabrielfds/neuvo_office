@@ -150,6 +150,18 @@ export async function POST(request) {
         return Response.json({ error: 'content is required' }, { status: 400 })
       }
 
+      // Filter system heartbeat/health-check noise — never create tasks
+      const trimmedContent = content.replace(/^\[Telegram[^\]]*\]\s*/s, '').replace(/\[message_id:\s*\d+\]\s*$/, '').trim()
+      const HEARTBEAT_NOISE = ['System heartbeat check', 'Periodic health check', 'Read HEARTBEAT.md', 'HEARTBEAT_OK']
+      if (HEARTBEAT_NOISE.some(p => trimmedContent.includes(p))) {
+        return Response.json({ success: true, filtered: true, message: 'Heartbeat noise filtered' })
+      }
+
+      // Filter slash commands
+      if (/^\/\w+/.test(trimmedContent)) {
+        return Response.json({ success: true, filtered: true, message: 'Slash command filtered' })
+      }
+
       // Chain support: auto-generate chainId if not provided
       const chainId = body.chainId || `chain_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
       
