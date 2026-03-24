@@ -101,7 +101,54 @@ export async function initCommand(options) {
       }
     }
   } else {
-    console.log(chalk.dim('\n  No agents discovered. You can add them later in the config.\n'));
+    console.log(chalk.dim('\n  No agents discovered from gateway.\n'));
+
+    const DEFAULT_AGENTS = [
+      { id: 'main', name: 'Main', role: 'Orchestrator', emoji: '🤖', color: '#ff006e' },
+      { id: 'researcher', name: 'Researcher', role: 'Research & Analysis', emoji: '🔍', color: '#00f5ff' },
+      { id: 'writer', name: 'Writer', role: 'Content & Documentation', emoji: '✍️', color: '#ffd700' },
+    ];
+
+    const { agentSetup } = await inquirer.prompt({
+      type: 'list',
+      name: 'agentSetup',
+      message: 'How would you like to set up agents?',
+      choices: [
+        { name: '📦 Use starter agents (Main + Researcher + Writer)', value: 'starter' },
+        { name: '✏️  Define my own agents', value: 'custom' },
+        { name: '⏭️  Skip — I\'ll configure agents later', value: 'skip' },
+      ],
+    });
+
+    if (agentSetup === 'starter') {
+      agents = DEFAULT_AGENTS;
+      console.log();
+      console.log(chalk.bold('  Starter agents:'));
+      for (const a of agents) {
+        console.log(`    ${a.emoji} ${chalk.bold(a.name)} — ${a.role}`);
+      }
+      console.log();
+    } else if (agentSetup === 'custom') {
+      const { agentCount } = await inquirer.prompt({
+        type: 'number',
+        name: 'agentCount',
+        message: 'How many agents?',
+        default: 2,
+      });
+
+      for (let i = 0; i < agentCount; i++) {
+        console.log(chalk.dim(`\n  Agent ${i + 1}:`));
+        const answers = await inquirer.prompt([
+          { type: 'input', name: 'id', message: 'Agent ID (lowercase):', default: `agent${i + 1}` },
+          { type: 'input', name: 'name', message: 'Display name:', default: `Agent ${i + 1}` },
+          { type: 'input', name: 'role', message: 'Role:', default: 'Agent' },
+          { type: 'input', name: 'emoji', message: 'Emoji:', default: '🤖' },
+          { type: 'input', name: 'color', message: 'Color (hex):', default: '#6366f1' },
+        ]);
+        agents.push(answers);
+      }
+    }
+    // 'skip' → agents stays empty, user configures later
   }
 
   // ── Office Style ──
@@ -224,7 +271,15 @@ export async function initCommand(options) {
     });
 
     if (imgResult.generated) {
-      imgSpinner.succeed('Office image generated!');
+      imgSpinner.succeed(`Office image generated! → ${imgResult.imagePath}`);
+
+      // Try to open image for preview (non-blocking)
+      try {
+        const { exec: execCb } = await import('child_process');
+        const openCmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
+        execCb(`${openCmd} "${imgResult.imagePath}"`, () => {});
+        console.log(chalk.dim('    📸 Opening image preview...'));
+      } catch {}
     } else {
       imgSpinner.info(chalk.dim(`Using default image${imgResult.error ? ` (${imgResult.error})` : ''}`));
     }
@@ -254,7 +309,7 @@ export async function initCommand(options) {
   console.log();
   console.log(`    ${chalk.dim('Config:')}    ./openclaw-office.config.json`);
   console.log(`    ${chalk.dim('Env:')}       ./.env.local`);
-  console.log(`    ${chalk.dim('Agents:')}    ${agents.length} discovered`);
+  console.log(`    ${chalk.dim('Agents:')}    ${agents.length} configured`);
   console.log(`    ${chalk.dim('Style:')}     ${styleLabel}`);
   console.log(`    ${chalk.dim('Deploy:')}    ${deployLabel}`);
   console.log();
