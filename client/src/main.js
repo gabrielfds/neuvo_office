@@ -21,9 +21,9 @@ scene.fog = new THREE.FogExp2(0x0a0e1a, 0.035);
 
 // ─── Camera ────────────────────────────────────────────────────────────────
 
-const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 80);
-camera.position.set(0, 11, 14);
-camera.lookAt(0, 0.5, -1);
+const camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.1, 80);
+camera.position.set(0, 22, 18);
+camera.lookAt(0, 0, -1);
 
 // ─── Lighting ──────────────────────────────────────────────────────────────
 
