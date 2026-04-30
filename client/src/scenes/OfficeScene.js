@@ -82,7 +82,7 @@ export default class OfficeScene extends Phaser.Scene {
       g.fillRect(cx - 8, 32, 16, 6);
 
       // Floor light pool
-      g.fillGradientStyle(0xffffff, 0xffffff, 0x0f1526, 0x0f1526, 0.04, 0.04, 0, 0);
+      g.fillStyle(0xffffff, 0.03);
       g.fillEllipse(cx, 400, 340, 180);
     });
   }
@@ -320,7 +320,9 @@ export default class OfficeScene extends Phaser.Scene {
     g.lineStyle(1, 0x2a3860);
     g.strokeRect(x + 74, y - 14, 16, 18);
     g.lineStyle(2, 0x2a3860);
-    g.strokeArc(x + 90, y - 5, 5, -90, 90);
+    g.beginPath();
+    g.arc(x + 90, y - 5, 5, -Math.PI / 2, Math.PI / 2);
+    g.strokePath();
 
     // Name plate
     g.fillStyle(0x0d1220);
@@ -400,7 +402,9 @@ export default class OfficeScene extends Phaser.Scene {
     // Smile
     const mouthG = this.add.graphics();
     mouthG.lineStyle(2, 0x5a3020, 0.8);
-    mouthG.strokeArc(0, -2, 6, 10, 170);
+    mouthG.beginPath();
+    mouthG.arc(0, -2, 6, Phaser.Math.DegToRad(15), Phaser.Math.DegToRad(165));
+    mouthG.strokePath();
 
     // Cheeks
     const cheekL = this.add.ellipse(-12, -4, 10, 6, theme.body, 0.25);
