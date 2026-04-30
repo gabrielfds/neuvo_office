@@ -56,7 +56,7 @@ export function buildOffice(scene) {
 function buildFloor(scene) {
   // Main floor
   const geo = new THREE.PlaneGeometry(32, 20);
-  const mat = new THREE.MeshStandardMaterial({ color: 0x0e1528, roughness: 0.95 });
+  const mat = new THREE.MeshStandardMaterial({ color: 0x1e2a44, roughness: 0.85 });
   const floor = new THREE.Mesh(geo, mat);
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
@@ -87,7 +87,7 @@ function buildFloor(scene) {
 
 function buildWorkspace(scene) {
   // Outer walls
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x0b0f1e, roughness: 0.9 });
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x1a2238, roughness: 0.85 });
 
   // Back wall (left side)
   addBox(scene, new THREE.BoxGeometry(15.5, 6, 0.15), wallMat, -7, 3, -9.92);
@@ -288,12 +288,12 @@ function buildRestRoom(scene, glassMat) {
 function buildLighting(scene) {
   // Workspace ceiling lights
   [[-11, -3], [-7, -3], [-3, -3], [-11, 2], [-7, 2], [-3, 2], [-7, 7]].forEach(([x, z]) => {
-    addCeilingLight(scene, x, z, 0xfff0dd, 1.2, 10);
+    addCeilingLight(scene, x, z, 0xfff0dd, 3.5, 14);
   });
 
   // Room ceiling lights
   [[8.5, -6], [8.5, 0.5], [8.5, 6.5]].forEach(([x, z]) => {
-    addCeilingLight(scene, x, z, 0xffeedd, 1.0, 8);
+    addCeilingLight(scene, x, z, 0xffeedd, 3.0, 12);
   });
 }
 
