@@ -31,9 +31,8 @@ function broadcast(data) {
 function connectToOpenClaw() {
   let clawWs;
   try {
-    clawWs = new WebSocket(OPENCLAW_WS, {
-      headers: { Authorization: `Bearer ${OPENCLAW_TOKEN}` }
-    });
+    const url = `${OPENCLAW_WS}?token=${OPENCLAW_TOKEN}`;
+    clawWs = new WebSocket(url);
   } catch (e) {
     console.error('OpenClaw WS error:', e.message);
     setTimeout(connectToOpenClaw, 10000);
@@ -61,8 +60,8 @@ function connectToOpenClaw() {
     } catch (_) {}
   });
 
-  clawWs.on('close', () => {
-    console.log('OpenClaw disconnected — reconnecting in 10s');
+  clawWs.on('close', (code, reason) => {
+    console.log(`OpenClaw disconnected — code: ${code}, reason: ${reason?.toString() || 'none'} — reconnecting in 10s`);
     broadcast({ type: 'gateway', status: 'disconnected' });
     setTimeout(connectToOpenClaw, 10000);
   });
