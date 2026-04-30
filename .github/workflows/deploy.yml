@@ -1,0 +1,24 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger EasyPanel redeploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 187.77.247.66
+          username: root
+          password: ${{ secrets.VPS_PASSWORD }}
+          script: |
+            docker exec $(docker ps -q -f name=easypanel) \
+              node /easypanel/dist/cli.js deploy n8n office || \
+            curl -s -X POST http://localhost:3000/api/trpc/services.redeploy \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $(cat /easypanel/.token 2>/dev/null || echo '')" \
+              -d '{"json":{"projectName":"n8n","serviceName":"office"}}' || \
+            echo "Manual deploy needed - check EasyPanel"
