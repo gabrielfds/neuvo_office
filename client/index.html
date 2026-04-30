@@ -2,24 +2,45 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Neuvo Office</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: #080b14;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      overflow: hidden;
-      font-family: monospace;
-    }
+    body { background: #0d1117; overflow: hidden; font-family: monospace; }
     canvas { display: block; }
+    #ui {
+      position: fixed; top: 0; left: 0; right: 0;
+      height: 32px;
+      background: rgba(8, 11, 20, 0.9);
+      border-bottom: 1px solid #1a2040;
+      display: flex; align-items: center; padding: 0 16px;
+      z-index: 10;
+    }
+    #status { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+    #dot { width: 8px; height: 8px; border-radius: 50%; background: #ff3333; transition: background 0.4s; }
+    #dot.online { background: #00ff88; }
+    #status-text { color: #444; transition: color 0.4s; }
+    #status-text.online { color: #00ff88; }
+    #logo { position: absolute; left: 50%; transform: translateX(-50%); color: #ff4444; font-weight: bold; font-size: 13px; letter-spacing: 4px; }
+    #clock { margin-left: auto; color: #333; font-size: 11px; }
   </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+    }
+  }
+  </script>
 </head>
 <body>
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+  <div id="ui">
+    <div id="status">
+      <div id="dot"></div>
+      <span id="status-text">offline</span>
+    </div>
+    <div id="logo">NEUVO OFFICE</div>
+    <div id="clock"></div>
+  </div>
   <script type="module" src="src/main.js"></script>
 </body>
 </html>
