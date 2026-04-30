@@ -112,73 +112,68 @@ export default class Agent {
 
   buildPlaceholder() {
     const c = COLORS[this.id] || COLORS.default;
-    const bodyMat = new THREE.MeshStandardMaterial({ color: c.body, roughness: 0.7, flatShading: true });
-    const skinMat = new THREE.MeshStandardMaterial({ color: c.skin, roughness: 0.8, flatShading: true });
-    const hairMat = new THREE.MeshStandardMaterial({ color: c.hair, roughness: 0.9, flatShading: true });
-    const darkMat = new THREE.MeshStandardMaterial({ color: 0x0d1117 });
-    const eyeMat  = new THREE.MeshStandardMaterial({ color: 0xffffff });
-    const shineMat= new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.5 });
+    const bodyMat = new THREE.MeshStandardMaterial({ color: c.body, roughness: 0.75, flatShading: true });
+    const skinMat = new THREE.MeshStandardMaterial({ color: c.skin, roughness: 0.85, flatShading: true });
+    const hairMat = new THREE.MeshStandardMaterial({ color: c.hair, roughness: 0.95, flatShading: true });
+    const darkMat = new THREE.MeshStandardMaterial({ color: 0x252830, roughness: 0.6, flatShading: true });
 
     this.ph = new THREE.Group();
 
-    // Legs
-    this.legL = this.addMesh(this.ph, new THREE.BoxGeometry(0.15, 0.38, 0.15), bodyMat.clone(), -0.1, 0.19, 0);
-    this.legR = this.addMesh(this.ph, new THREE.BoxGeometry(0.15, 0.38, 0.15), bodyMat.clone(),  0.1, 0.19, 0);
+    // Body — single capsule (low-poly)
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.5, 4, 8), bodyMat);
+    body.position.y = 0.55;
+    body.castShadow = true;
+    this.ph.add(body);
 
-    // Feet
-    const footGeo = new THREE.BoxGeometry(0.14, 0.07, 0.2);
-    this.addMesh(this.ph, footGeo, hairMat.clone(), -0.1, 0.04,  0.04);
-    this.addMesh(this.ph, footGeo, hairMat.clone(),  0.1, 0.04,  0.04);
+    // Pants — short cylinder under body
+    const pants = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.2, 0.18, 8), darkMat);
+    pants.position.y = 0.27;
+    pants.castShadow = true;
+    this.ph.add(pants);
 
-    // Body
-    this.addMesh(this.ph, new THREE.BoxGeometry(0.38, 0.46, 0.26), bodyMat, 0, 0.65, 0);
+    // Legs (so we can swing them while walking)
+    this.legL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.22, 0.13), darkMat);
+    this.legL.position.set(-0.09, 0.13, 0);
+    this.ph.add(this.legL);
+    this.legR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.22, 0.13), darkMat);
+    this.legR.position.set(0.09, 0.13, 0);
+    this.ph.add(this.legR);
 
-    // Collar
-    this.addMesh(this.ph, new THREE.BoxGeometry(0.12, 0.12, 0.27), skinMat.clone(), 0, 0.86, 0);
+    // Head — sphere
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 8), skinMat);
+    head.position.y = 1.05;
+    head.castShadow = true;
+    this.ph.add(head);
 
-    // Arms
-    this.armL = this.addMesh(this.ph, new THREE.BoxGeometry(0.13, 0.36, 0.13), bodyMat.clone(), -0.26, 0.64, 0);
-    this.armR = this.addMesh(this.ph, new THREE.BoxGeometry(0.13, 0.36, 0.13), bodyMat.clone(),  0.26, 0.64, 0);
+    // Hair cap
+    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.21, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2.2), hairMat);
+    hair.position.y = 1.05;
+    this.ph.add(hair);
 
-    // Hands
-    const handGeo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
-    this.addMesh(this.ph, handGeo, skinMat.clone(), -0.26, 0.44, 0);
-    this.addMesh(this.ph, handGeo, skinMat.clone(),  0.26, 0.44, 0);
+    // Two simple eye dots
+    const eyeGeo = new THREE.SphereGeometry(0.025, 6, 4);
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x252830 });
+    const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+    eyeL.position.set(-0.07, 1.06, 0.18);
+    this.ph.add(eyeL);
+    const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+    eyeR.position.set(0.07, 1.06, 0.18);
+    this.ph.add(eyeR);
 
-    // Head
-    this.addMesh(this.ph, new THREE.BoxGeometry(0.36, 0.36, 0.32), skinMat, 0, 1.12, 0);
-
-    // Hair
-    this.addMesh(this.ph, new THREE.BoxGeometry(0.38, 0.18, 0.34), hairMat, 0, 1.27, 0);
-    this.addMesh(this.ph, new THREE.BoxGeometry(0.36, 0.32, 0.06), hairMat.clone(), 0, 1.14, -0.17);
-
-    // Eyes
-    const eyeGeo = new THREE.BoxGeometry(0.09, 0.09, 0.04);
-    this.addMesh(this.ph, eyeGeo, eyeMat,  -0.1, 1.12, 0.16);
-    this.addMesh(this.ph, eyeGeo, eyeMat,   0.1, 1.12, 0.16);
-    this.addMesh(this.ph, new THREE.BoxGeometry(0.045, 0.045, 0.04), darkMat, -0.1, 1.12, 0.18);
-    this.addMesh(this.ph, new THREE.BoxGeometry(0.045, 0.045, 0.04), darkMat,  0.1, 1.12, 0.18);
-    this.addMesh(this.ph, new THREE.BoxGeometry(0.02, 0.02, 0.02), shineMat, -0.07, 1.14, 0.19);
-    this.addMesh(this.ph, new THREE.BoxGeometry(0.02, 0.02, 0.02), shineMat,  0.13, 1.14, 0.19);
-
-    // Shadow
+    // Soft contact shadow
     const shadow = new THREE.Mesh(
       new THREE.CircleGeometry(0.28, 16),
       new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22 })
     );
     shadow.rotation.x = -Math.PI / 2;
-    shadow.position.y = 0.002;
+    shadow.position.y = 0.005;
     this.ph.add(shadow);
 
-    this.group.add(this.ph);
-  }
+    // Arm references kept null — capsule body has no separate arms
+    this.armL = null;
+    this.armR = null;
 
-  addMesh(parent, geo, mat, x, y, z) {
-    const m = new THREE.Mesh(geo, mat);
-    m.position.set(x, y, z);
-    m.castShadow = true;
-    parent.add(m);
-    return m;
+    this.group.add(this.ph);
   }
 
   // ─── Label ────────────────────────────────────────────────────────────────

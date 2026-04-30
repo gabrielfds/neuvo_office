@@ -46,13 +46,22 @@ export default class Editor {
       this.orbit.enabled = !e.value;
     });
 
+    // Save initial camera state so we can restore on exit
+    this.initialCam = {
+      position: camera.position.clone(),
+      zoom: camera.zoom,
+      target: new THREE.Vector3(-2, 0, 0)
+    };
+
     // Orbit (edit mode only)
     this.orbit = new OrbitControls(camera, renderer.domElement);
     this.orbit.enabled = false;
-    this.orbit.target.set(0, 0, -1);
+    this.orbit.target.copy(this.initialCam.target);
     this.orbit.maxPolarAngle = Math.PI / 2.1;
+    this.orbit.minZoom = 0.4;
+    this.orbit.maxZoom = 4;
     this.orbit.minDistance = 5;
-    this.orbit.maxDistance = 40;
+    this.orbit.maxDistance = 60;
     this.orbit.update();
 
     this.buildUI();
@@ -222,6 +231,12 @@ export default class Editor {
     } else {
       this.cancelPlacement();
       this.deselect();
+      // Restore initial isometric camera
+      this.camera.position.copy(this.initialCam.position);
+      this.camera.zoom = this.initialCam.zoom;
+      this.camera.lookAt(this.initialCam.target);
+      this.camera.updateProjectionMatrix();
+      this.orbit.target.copy(this.initialCam.target);
     }
   }
 

@@ -11,62 +11,49 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.NoToneMapping;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
 // ─── Scene ─────────────────────────────────────────────────────────────────
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a0e1a);
-scene.fog = new THREE.FogExp2(0x0a0e1a, 0.012);
+scene.background = new THREE.Color(0xeee5d2);   // soft cream backdrop
 
-// ─── Camera ────────────────────────────────────────────────────────────────
+// ─── Camera (orthographic isometric) ──────────────────────────────────────
 
-const camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.1, 80);
-camera.position.set(0, 22, 18);
-camera.lookAt(0, 0, -1);
+const VIEW_SIZE = 13;
+const aspect = window.innerWidth / window.innerHeight;
+const camera = new THREE.OrthographicCamera(
+  -VIEW_SIZE * aspect, VIEW_SIZE * aspect,
+   VIEW_SIZE,         -VIEW_SIZE,
+  -100, 200
+);
+camera.position.set(24, 22, 24);
+camera.lookAt(-2, 0, 0);
 
 // ─── Lighting ──────────────────────────────────────────────────────────────
 
-// Ambient — strong base fill
-const ambient = new THREE.AmbientLight(0x8899cc, 2.5);
-scene.add(ambient);
+scene.add(new THREE.HemisphereLight(0xffeed1, 0x4a4860, 0.7));
+scene.add(new THREE.AmbientLight(0xffffff, 0.35));
 
-// Main directional
-const dirLight = new THREE.DirectionalLight(0xfff5e0, 3.0);
-dirLight.position.set(4, 14, 8);
-dirLight.castShadow = true;
-dirLight.shadow.mapSize.set(2048, 2048);
-dirLight.shadow.camera.near = 0.5;
-dirLight.shadow.camera.far = 60;
-dirLight.shadow.camera.left = -20;
-dirLight.shadow.camera.right = 20;
-dirLight.shadow.camera.top = 16;
-dirLight.shadow.camera.bottom = -16;
-dirLight.shadow.bias = -0.001;
-scene.add(dirLight);
-
-// Fill light from front
-const fillLight = new THREE.DirectionalLight(0xaabbff, 1.5);
-fillLight.position.set(-4, 8, 14);
-scene.add(fillLight);
-
-// Rim light
-const rimLight = new THREE.DirectionalLight(0x4466ff, 0.8);
-rimLight.position.set(-3, 5, -8);
-scene.add(rimLight);
+const sun = new THREE.DirectionalLight(0xfff2d8, 1.7);
+sun.position.set(18, 36, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 1;
+sun.shadow.camera.far = 100;
+sun.shadow.camera.left   = -22;
+sun.shadow.camera.right  =  22;
+sun.shadow.camera.top    =  22;
+sun.shadow.camera.bottom = -22;
+sun.shadow.bias       = -0.0008;
+sun.shadow.normalBias = 0.04;
+sun.shadow.radius     = 3;
+scene.add(sun);
 
 // ─── Build Office ──────────────────────────────────────────────────────────
 
 buildOffice(scene);
-
-// ─── Editor ────────────────────────────────────────────────────────────────
-
-const editor = new Editor({
-  scene, camera, renderer,
-  onFreezeAgents: freeze => {
-    Object.values(agents).forEach(a => { a.frozen = freeze; });
-  }
-});
 
 // ─── Agents ────────────────────────────────────────────────────────────────
 
@@ -76,6 +63,15 @@ function spawnAgent(data) {
   if (agents[data.id]) return;
   agents[data.id] = new Agent(data, scene);
 }
+
+// ─── Editor ────────────────────────────────────────────────────────────────
+
+const editor = new Editor({
+  scene, camera, renderer,
+  onFreezeAgents: freeze => {
+    Object.values(agents).forEach(a => { a.frozen = freeze; });
+  }
+});
 
 // ─── WebSocket ─────────────────────────────────────────────────────────────
 
@@ -127,7 +123,11 @@ setInterval(() => {
 // ─── Resize ────────────────────────────────────────────────────────────────
 
 window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+  const a = window.innerWidth / window.innerHeight;
+  camera.left   = -VIEW_SIZE * a;
+  camera.right  =  VIEW_SIZE * a;
+  camera.top    =  VIEW_SIZE;
+  camera.bottom = -VIEW_SIZE;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
