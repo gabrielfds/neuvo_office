@@ -1,0 +1,12 @@
+{
+  "enabledMcpjsonServers": [
+    "supabase",
+    "n8n-mcp",
+    "hostinger-mcp"
+  ],
+  "permissions": {
+    "allow": [
+      "Bash(npm start *)"
+    ]
+  }
+}
