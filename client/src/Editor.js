@@ -87,6 +87,19 @@ export default class Editor {
         font: bold 11px monospace; color: #6c63ff;
         border-bottom: 1px solid #1a2040; letter-spacing: 2px;
       }
+      #upload-zone {
+        padding: 6px 8px; border-bottom: 1px solid #1a2040;
+        display: flex; flex-direction: column; gap: 4px;
+      }
+      #upload-label {
+        display: block; text-align: center; padding: 6px;
+        background: #111828; border: 1px dashed #2a3a5a;
+        border-radius: 4px; color: #6c63ff; font: 11px monospace;
+        cursor: pointer; transition: all .15s;
+      }
+      #upload-label:hover { border-color: #6c63ff; background: #1a1f35; }
+      #upload-status { font: 10px monospace; color: #556; text-align: center; min-height: 14px; }
+
       #asset-list {
         flex: 1; overflow-y: auto; padding: 8px;
         display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
@@ -147,7 +160,17 @@ export default class Editor {
     // Asset panel
     this.panel = document.createElement('div');
     this.panel.id = 'asset-panel';
-    this.panel.innerHTML = '<h3>ASSETS</h3><div id="asset-list"></div>';
+    this.panel.innerHTML = `
+      <h3>ASSETS</h3>
+      <div id="upload-zone">
+        <label id="upload-label">
+          ↑ Carregar GLB / GLTF
+          <input type="file" id="upload-input" accept=".glb,.gltf" multiple style="display:none">
+        </label>
+        <span id="upload-status"></span>
+      </div>
+      <div id="asset-list"></div>
+    `;
     document.body.appendChild(this.panel);
 
     // Toolbar
@@ -476,6 +499,32 @@ export default class Editor {
   // ─── Events ────────────────────────────────────────────────────────────────
 
   bindEvents() {
+    // File upload
+    document.getElementById('upload-input').addEventListener('change', async e => {
+      const files = Array.from(e.target.files);
+      if (!files.length) return;
+      const status = document.getElementById('upload-status');
+      status.textContent = `Enviando ${files.length} arquivo(s)…`;
+
+      const fd = new FormData();
+      files.forEach(f => fd.append('files', f));
+
+      try {
+        const res = await fetch('/api/upload', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.ok) {
+          status.textContent = `✓ ${data.files.length} asset(s) carregado(s)`;
+          this.loadAssets();
+        } else {
+          status.textContent = 'Erro no upload';
+        }
+      } catch {
+        status.textContent = 'Falha na conexão';
+      }
+      e.target.value = '';
+      setTimeout(() => { status.textContent = ''; }, 3000);
+    });
+
     const canvas = this.renderer.domElement;
 
     canvas.addEventListener('mousemove', e => {

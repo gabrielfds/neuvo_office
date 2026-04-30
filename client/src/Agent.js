@@ -11,10 +11,63 @@ const COLORS = {
   default: { body: 0x44cc88, skin: 0xffd5a8, hair: 0x1a2a1a }
 };
 
-// Where each agent goes by default when idle
-const IDLE_ZONE = {
-  jarbas: () => randomAround(pickRandom(ZONES.WANDER), 0.5)
+// Pontos nos corredores — entre as fileiras, nunca em cima de mesas
+// ROW1 z=-5, ROW2 z=0, ROW3 z=5  →  corredores em z=-2.5, z=2.5, z=-7.5, z=7.5
+const CORRIDOR = [
+  new THREE.Vector3(-10,  0, -2.5), new THREE.Vector3(-6.5, 0, -2.5), new THREE.Vector3(-3, 0, -2.5),
+  new THREE.Vector3(-10,  0,  2.5), new THREE.Vector3(-6.5, 0,  2.5), new THREE.Vector3(-3, 0,  2.5),
+  new THREE.Vector3(-7,   0, -7.5), new THREE.Vector3(-7,   0,  7.5),
+  new THREE.Vector3(-13,  0, -4),   new THREE.Vector3(-13,  0,  0),   new THREE.Vector3(-13, 0,  4),
+  new THREE.Vector3(-1.5, 0, -4),   new THREE.Vector3(-1.5, 0,  0),   new THREE.Vector3(-1.5, 0,  4),
+];
+
+// ─── Config por agente ────────────────────────────────────────────────────
+// desk:    mesa atribuída (posição central)
+// seat:    onde o agente fica sentado (frente da mesa, lado do usuário)
+// states:  função que retorna o destino para cada estado
+const v = (x, y, z) => new THREE.Vector3(x, y, z);
+
+const AGENT_CONFIG = {
+  jarbas: {
+    desk: v(-3,   0, -5),
+    seat: v(-3,   0, -4.3),   // frente da mesa ROW1[2]
+    states: {
+      working: () => v(9.5,  0, -5.4),   // frente da mesa executiva na sala do chefe
+      meeting: () => randomAround(ZONES.MEETING_ROOM, 1.2),
+      idle:    () => randomAround(pickRandom(ZONES.WANDER), 0.5)
+    }
+  },
+  agent2: {
+    desk: v(-6.5, 0,  0),
+    seat: v(-6.5, 0,  0.7),   // frente da mesa ROW2[1]
+    states: {
+      working: () => v(-6.5, 0,  0.7),
+      meeting: () => randomAround(ZONES.MEETING_ROOM, 1.2),
+      idle:    () => randomAround(pickRandom(CORRIDOR), 0.4)
+    }
+  },
+  agent3: {
+    desk: v(-10,  0,  5),
+    seat: v(-10,  0,  5.7),   // frente da mesa ROW3[0]
+    states: {
+      working: () => v(-10,  0,  5.7),
+      meeting: () => randomAround(ZONES.MEETING_ROOM, 1.2),
+      idle:    () => randomAround(pickRandom(CORRIDOR), 0.4)
+    }
+  }
 };
+
+function getConfig(id) {
+  return AGENT_CONFIG[id] ?? {
+    desk: pickRandom(ALL_DESK_SPOTS),
+    seat: null,
+    states: {
+      working: function() { return randomAround(this.desk, 0.4); },
+      meeting: () => randomAround(ZONES.MEETING_ROOM, 1.2),
+      idle:    () => randomAround(pickRandom(CORRIDOR), 0.4)
+    }
+  };
+}
 
 function pickRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -22,9 +75,9 @@ function pickRandom(arr) {
 
 function randomAround(pos, radius) {
   return new THREE.Vector3(
-    pos.x + (Math.random() - 0.5) * radius,
+    pos.x + (Math.random() - 0.5) * radius * 2,
     0,
-    pos.z + (Math.random() - 0.5) * radius
+    pos.z + (Math.random() - 0.5) * radius * 2
   );
 }
 
@@ -34,22 +87,19 @@ export default class Agent {
     this.name  = data.name;
     this.state = data.state || 'idle';
     this.scene = scene;
+    this.cfg   = getConfig(data.id);
 
     this.group = new THREE.Group();
     this.mixer = null;
     this.clips = {};
     this.speed = 2.4;
-    this.isMoving   = false;
-    this.moveDelay  = 1.5 + Math.random() * 4;
-    this.targetPos  = new THREE.Vector3();
+    this.isMoving  = false;
+    this.moveDelay = 1.5 + Math.random() * 4;
+    this.targetPos = new THREE.Vector3();
 
-    // Start at random desk
-    const start = pickRandom(ALL_DESK_SPOTS);
-    this.group.position.set(
-      start.x + (Math.random() - 0.5) * 0.4,
-      0,
-      start.z + (Math.random() - 0.5) * 0.4
-    );
+    // Começa na cadeira da mesa atribuída
+    const start = this.cfg.seat ?? this.cfg.desk;
+    this.group.position.set(start.x, 0, start.z);
     this.targetPos.copy(this.group.position);
 
     this.buildPlaceholder();
@@ -221,18 +271,11 @@ export default class Agent {
     this.state = newState;
     this.rebuildDot();
 
-    if (newState === 'working') {
-      // Jarbas goes to boss office
-      if (this.id === 'jarbas') {
-        this.moveTo(ZONES.BOSS_OFFICE.clone().add(new THREE.Vector3((Math.random()-0.5)*0.4, 0, (Math.random()-0.5)*0.4)));
-      } else {
-        // Others go to desk
-        this.moveTo(randomAround(pickRandom(ALL_DESK_SPOTS), 0.3));
-      }
-    } else if (newState === 'meeting') {
-      this.moveTo(ZONES.MEETING_ROOM.clone().add(new THREE.Vector3((Math.random()-0.5)*1.5, 0, (Math.random()-0.5)*1.5)));
+    const dest = this.cfg.states[newState]?.call(this.cfg);
+    if (dest) {
+      this.moveTo(dest);
     } else {
-      // idle — wander workspace
+      // estado desconhecido → wander no corredor
       this.moveDelay = 0.5;
     }
   }
@@ -293,10 +336,8 @@ export default class Agent {
     } else {
       this.moveDelay -= delta;
       if (this.moveDelay <= 0 && this.state !== 'working') {
-        // Wander: workspace desks or wander spots
-        const allSpots = [...ALL_DESK_SPOTS, ...ZONES.WANDER];
-        const spot = pickRandom(allSpots);
-        this.moveTo(randomAround(spot, 0.5));
+        const dest = this.cfg.states.idle?.call(this.cfg) ?? randomAround(pickRandom(CORRIDOR), 0.4);
+        this.moveTo(dest);
       }
     }
   }
