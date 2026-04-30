@@ -90,17 +90,15 @@ function buildWorkspace(scene) {
   const wallMat = new THREE.MeshStandardMaterial({ color: 0x1a2238, roughness: 0.85 });
 
   // Back wall (left side)
-  addBox(scene, new THREE.BoxGeometry(15.5, 6, 0.15), wallMat, -7, 3, -9.92);
+  addBox(scene, new THREE.BoxGeometry(15.5, 2.5, 0.15), wallMat, -7, 1.25, -9.92);
 
   // Left wall
-  addBox(scene, new THREE.BoxGeometry(0.15, 6, 20), wallMat, -15.07, 3, 0);
+  addBox(scene, new THREE.BoxGeometry(0.15, 2.5, 20), wallMat, -15.07, 1.25, 0);
 
   // Front wall (partial - opening toward rooms)
-  addBox(scene, new THREE.BoxGeometry(15.5, 6, 0.15), wallMat, -7, 3, 9.92);
+  addBox(scene, new THREE.BoxGeometry(15.5, 2.5, 0.15), wallMat, -7, 1.25, 9.92);
 
-  // Ceiling
-  const ceilMat = new THREE.MeshStandardMaterial({ color: 0x080c18 });
-  addBox(scene, new THREE.PlaneGeometry(15.5, 20), ceilMat, -7, 6, 0, -Math.PI / 2);
+  // No ceiling — camera looks down from above
 
   // Windows on back wall
   buildBackWindows(scene);
@@ -154,22 +152,19 @@ function buildRooms(scene) {
   });
 
   // Outer right wall
-  addBox(scene, new THREE.BoxGeometry(0.15, 6, 20), wallMat, 15.07, 3, 0);
+  addBox(scene, new THREE.BoxGeometry(0.15, 2.5, 20), wallMat, 15.07, 1.25, 0);
   // Back (right side)
-  addBox(scene, new THREE.BoxGeometry(12.5, 6, 0.15), wallMat, 8.5, 3, -9.92);
-  addBox(scene, new THREE.BoxGeometry(12.5, 6, 0.15), wallMat, 8.5, 3,  9.92);
+  addBox(scene, new THREE.BoxGeometry(12.5, 2.5, 0.15), wallMat, 8.5, 1.25, -9.92);
+  addBox(scene, new THREE.BoxGeometry(12.5, 2.5, 0.15), wallMat, 8.5, 1.25,  9.92);
 
-  // Ceiling (right side)
-  addBox(scene, new THREE.PlaneGeometry(12.5, 20), new THREE.MeshStandardMaterial({ color: 0x060a16 }), 8.5, 6, 0, -Math.PI / 2);
+  // No ceiling — camera looks down from above
 
   // Central divider wall (between workspace and rooms)
   // With opening/door
-  addBox(scene, new THREE.BoxGeometry(0.15, 6, 6), wallMat, 2.0, 3, -7);
-  addBox(scene, new THREE.BoxGeometry(0.15, 6, 6), wallMat, 2.0, 3,  7);
-  // Door header
-  addBox(scene, new THREE.BoxGeometry(0.15, 2.5, 5.8), wallMat, 2.0, 4.75, 0);
-  // Glass door
-  addBox(scene, new THREE.PlaneGeometry(5.8, 2.3), glassMat, 2.0, 3.35, 0);
+  addBox(scene, new THREE.BoxGeometry(0.15, 2.5, 6), wallMat, 2.0, 1.25, -7);
+  addBox(scene, new THREE.BoxGeometry(0.15, 2.5, 6), wallMat, 2.0, 1.25,  7);
+  // Glass door (central opening)
+  addBox(scene, new THREE.PlaneGeometry(5.8, 2.0), glassMat, 2.0, 1.0, 0);
 
   // Horizontal dividers between rooms (z = -2 and z = 3.5)
   buildRoomDivider(scene, 2.0, -2.5, wallMat, glassMat);
@@ -187,9 +182,9 @@ function buildRooms(scene) {
 
 function buildRoomDivider(scene, x, z, wallMat, glassMat) {
   // Solid part + glass panel
-  addBox(scene, new THREE.BoxGeometry(13.2, 6, 0.12), wallMat, 8.5, 3, z);
+  addBox(scene, new THREE.BoxGeometry(13.2, 2.5, 0.12), wallMat, 8.5, 1.25, z);
   // Glass panel in divider
-  addBox(scene, new THREE.PlaneGeometry(6, 1.8), glassMat, 8.5, 3.8, z + 0.07);
+  addBox(scene, new THREE.PlaneGeometry(6, 1.5), glassMat, 8.5, 1.5, z + 0.07);
 }
 
 function buildBossOffice(scene, glassMat) {
@@ -298,24 +293,10 @@ function buildLighting(scene) {
 }
 
 function addCeilingLight(scene, x, z, color, intensity, dist) {
-  const housing = new THREE.Mesh(
-    new THREE.BoxGeometry(0.25, 0.12, 0.25),
-    new THREE.MeshStandardMaterial({ color: 0x1a2040 })
-  );
-  housing.position.set(x, 5.92, z);
-  scene.add(housing);
-
-  const bulb = new THREE.Mesh(
-    new THREE.SphereGeometry(0.06, 6, 6),
-    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1 })
-  );
-  bulb.position.set(x, 5.84, z);
-  scene.add(bulb);
-
-  const light = new THREE.PointLight(color, intensity, dist, 2);
-  light.position.set(x, 5.8, z);
-  light.castShadow = true;
-  light.shadow.mapSize.set(512, 512);
+  // Floating light at head height (no ceiling housing needed)
+  const light = new THREE.PointLight(color, intensity, dist, 1.5);
+  light.position.set(x, 4.0, z);
+  light.castShadow = false;
   scene.add(light);
 }
 
