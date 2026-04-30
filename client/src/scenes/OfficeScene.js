@@ -271,7 +271,8 @@ export default class OfficeScene extends Phaser.Scene {
   // ─── WebSocket ─────────────────────────────────────────────────────────────
 
   connectWebSocket() {
-    const url = `ws://${window.location.host}`;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const url = `${protocol}//${window.location.host}`;
     try {
       this.ws = new WebSocket(url);
     } catch (e) {
