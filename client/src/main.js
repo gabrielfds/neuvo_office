@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { buildOffice } from './office.js';
 import Agent from './Agent.js';
+import Editor from './Editor.js';
 
 // ─── Renderer ──────────────────────────────────────────────────────────────
 
@@ -57,6 +58,15 @@ scene.add(rimLight);
 // ─── Build Office ──────────────────────────────────────────────────────────
 
 buildOffice(scene);
+
+// ─── Editor ────────────────────────────────────────────────────────────────
+
+const editor = new Editor({
+  scene, camera, renderer,
+  onFreezeAgents: freeze => {
+    Object.values(agents).forEach(a => { a.frozen = freeze; });
+  }
+});
 
 // ─── Agents ────────────────────────────────────────────────────────────────
 
@@ -129,6 +139,7 @@ const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
   const delta = Math.min(clock.getDelta(), 0.05);
+  editor.update();
   Object.values(agents).forEach(a => a.update(delta, clock));
   renderer.render(scene, camera);
 }

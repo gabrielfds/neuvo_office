@@ -247,6 +247,7 @@ export default class Agent {
   // ─── Update ───────────────────────────────────────────────────────────────
 
   update(delta, clock) {
+    if (this.frozen) return;
     if (this.mixer) this.mixer.update(delta);
 
     // Idle bob (placeholder)
