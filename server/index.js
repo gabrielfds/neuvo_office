@@ -64,6 +64,59 @@ app.post('/api/upload', upload.array('files'), (req, res) => {
   res.json({ ok: true, files: saved });
 });
 
+// ─── In-memory state ───────────────────────────────────────────────────────
+
+const activityLog = [];
+const requests = [];
+const stats = { messagesReceived: 0, tasksCompleted: 0 };
+const startTime = Date.now();
+
+function addActivity(agentId, agentName, text) {
+  const entry = { ts: Date.now(), agent: agentId, name: agentName, text };
+  activityLog.unshift(entry);
+  if (activityLog.length > 100) activityLog.length = 100;
+}
+
+function createRequest(agentId, agentName) {
+  const req = {
+    id: `req-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    agent: agentId,
+    name: agentName,
+    state: 'Recebido',
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+  requests.unshift(req);
+  if (requests.length > 50) requests.length = 50;
+  return req;
+}
+
+function advanceRequest(agentId, toState) {
+  const req = requests.find(r => r.agent === agentId && r.state !== 'Concluído');
+  if (req) { req.state = toState; req.updatedAt = Date.now(); }
+}
+
+// ─── Dashboard API ─────────────────────────────────────────────────────────
+
+app.get('/api/stats', (req, res) => {
+  const agentCount = Object.values(agentState).filter(a => a.state === 'working').length;
+  res.json({
+    messagesReceived: stats.messagesReceived,
+    tasksCompleted: stats.tasksCompleted,
+    agentsOnline: Object.keys(agentState).length,
+    agentsWorking: agentCount,
+    uptime: Math.floor((Date.now() - startTime) / 1000)
+  });
+});
+
+app.get('/api/activity', (req, res) => {
+  res.json({ events: activityLog });
+});
+
+app.get('/api/requests', (req, res) => {
+  res.json({ requests });
+});
+
 // ─── WebSocket ─────────────────────────────────────────────────────────────
 
 const server = app.listen(PORT, () => console.log(`Neuvo Office running on port ${PORT}`));
@@ -74,7 +127,7 @@ const OPENCLAW_WS    = process.env.OPENCLAW_WS    || 'wss://n8n-dashboard-opencl
 const OPENCLAW_TOKEN = process.env.OPENCLAW_TOKEN || '9676df9685f924b552f7865808b705c5fbad35c27e4efc6d';
 
 const agentState = {
-  jarbas: { id: 'jarbas', name: 'Jarbas', state: 'idle', color: 0x6c63ff }
+  jarbas: { id: 'jarbas', name: 'Jarbas', state: 'idle', color: 0x6c63ff, lastAction: '' }
 };
 
 function broadcast(data) {
@@ -91,19 +144,42 @@ function connectToOpenClaw() {
     return;
   }
 
-  ws.on('open', () => { console.log('Connected to OpenClaw gateway'); broadcast({ type: 'gateway', status: 'connected' }); });
+  ws.on('open', () => {
+    console.log('Connected to OpenClaw gateway');
+    broadcast({ type: 'gateway', status: 'connected' });
+    addActivity('system', 'Sistema', 'Gateway OpenClaw conectado');
+  });
 
   ws.on('message', raw => {
     try {
       const msg = JSON.parse(raw);
+      console.log('[OpenClaw RAW]', JSON.stringify(msg));
       const id = msg.agentId || msg.agent || 'jarbas';
       const t = msg.type || '';
+      const agentName = agentState[id]?.name || id;
+      stats.messagesReceived++;
+
       if (t.includes('thinking') || t.includes('working') || t.includes('tool')) {
-        agentState[id] = { ...agentState[id], state: 'working' };
-        broadcast({ type: 'agent_state', agent: id, state: 'working' });
+        const prevState = agentState[id]?.state;
+        agentState[id] = { ...agentState[id], state: 'working', lastAction: t };
+        broadcast({ type: 'agent_state', agent: id, state: 'working', lastAction: t });
+
+        addActivity(id, agentName, `${t}`);
+
+        if (prevState !== 'working') {
+          const req = createRequest(id, agentName);
+          setTimeout(() => advanceRequest(id, 'Analisando'), 500);
+          setTimeout(() => advanceRequest(id, 'Tarefa Criada'), 1500);
+          setTimeout(() => advanceRequest(id, 'Atribuído'), 2500);
+          setTimeout(() => advanceRequest(id, 'Trabalhando'), 4000);
+          broadcast({ type: 'new_request', request: req });
+        }
       } else if (t.includes('done') || t.includes('idle') || t.includes('reply')) {
-        agentState[id] = { ...agentState[id], state: 'idle' };
-        broadcast({ type: 'agent_state', agent: id, state: 'idle' });
+        agentState[id] = { ...agentState[id], state: 'idle', lastAction: t };
+        broadcast({ type: 'agent_state', agent: id, state: 'idle', lastAction: t });
+        addActivity(id, agentName, `concluído: ${t}`);
+        advanceRequest(id, 'Concluído');
+        stats.tasksCompleted++;
       }
     } catch (_) {}
   });
@@ -111,6 +187,7 @@ function connectToOpenClaw() {
   ws.on('close', (code, reason) => {
     console.log(`OpenClaw disconnected — code: ${code}, reason: ${reason?.toString() || 'none'} — reconnecting in 10s`);
     broadcast({ type: 'gateway', status: 'disconnected' });
+    addActivity('system', 'Sistema', 'Gateway desconectado — reconectando...');
     setTimeout(connectToOpenClaw, 10000);
   });
 
@@ -119,7 +196,11 @@ function connectToOpenClaw() {
 
 wss.on('connection', ws => {
   clients.add(ws);
-  ws.send(JSON.stringify({ type: 'init', agents: Object.values(agentState) }));
+  ws.send(JSON.stringify({
+    type: 'init',
+    agents: Object.values(agentState),
+    gatewayStatus: 'connected'
+  }));
   ws.on('close', () => clients.delete(ws));
 });
 
