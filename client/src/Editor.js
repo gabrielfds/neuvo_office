@@ -170,17 +170,63 @@ export default class Editor {
     this.panel = document.createElement('div');
     this.panel.id = 'asset-panel';
     this.panel.innerHTML = `
-      <h3>ASSETS</h3>
-      <div id="upload-zone">
-        <label id="upload-label">
-          ↑ Carregar GLB / GLTF
-          <input type="file" id="upload-input" accept=".glb,.gltf" multiple style="display:none">
-        </label>
-        <span id="upload-status"></span>
+      <div id="panel-tabs" style="display:flex;border-bottom:1px solid #1a2040;">
+        <button class="ptab active" data-tab="assets" style="flex:1;padding:8px;background:none;border:none;color:#6c63ff;font:bold 10px monospace;cursor:pointer;letter-spacing:1px;">ASSETS</button>
+        <button class="ptab" data-tab="agents" style="flex:1;padding:8px;background:none;border:none;color:#556;font:bold 10px monospace;cursor:pointer;letter-spacing:1px;">AGENTES</button>
       </div>
-      <div id="asset-list"></div>
+      <div id="tab-assets">
+        <div id="upload-zone">
+          <label id="upload-label">
+            ↑ Carregar GLB / GLTF
+            <input type="file" id="upload-input" accept=".glb,.gltf" multiple style="display:none">
+          </label>
+          <span id="upload-status"></span>
+        </div>
+        <div id="asset-list"></div>
+      </div>
+      <div id="tab-agents" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
+        <div style="padding:8px;border-bottom:1px solid #1a2040;">
+          <select id="agent-select" style="width:100%;background:#111828;border:1px solid #1e2a44;color:#aab;font:11px monospace;padding:4px;border-radius:4px;">
+            <option value="">-- selecione agente --</option>
+          </select>
+          <select id="state-select" style="width:100%;margin-top:4px;background:#111828;border:1px solid #1e2a44;color:#aab;font:11px monospace;padding:4px;border-radius:4px;">
+            <option value="working">working (trabalhando)</option>
+            <option value="meeting">meeting (reunião)</option>
+            <option value="idle">idle (andando)</option>
+          </select>
+          <div id="agent-pick-status" style="font:10px monospace;color:#6c63ff;text-align:center;margin-top:6px;min-height:14px;"></div>
+        </div>
+        <div style="padding:8px;flex:1;overflow-y:auto;" id="agent-positions-list"></div>
+        <div style="padding:8px;border-top:1px solid #1a2040;display:flex;gap:6px;">
+          <button id="btn-pick-pos" class="tb-btn" style="flex:1;background:#1a1f35;border-color:#6c63ff;color:#9990ff;">📍 Clicar no chão</button>
+          <button id="btn-save-agents" class="tb-btn" style="flex:1;background:#1a3520;border-color:#2a6040;color:#4ca;">💾 Salvar</button>
+        </div>
+      </div>
     `;
     document.body.appendChild(this.panel);
+
+    // Tab switching
+    this.panel.querySelectorAll('.ptab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.panel.querySelectorAll('.ptab').forEach(b => { b.style.color = '#556'; b.classList.remove('active'); });
+        btn.style.color = '#6c63ff'; btn.classList.add('active');
+        document.getElementById('tab-assets').style.display = btn.dataset.tab === 'assets' ? 'flex' : 'none';
+        document.getElementById('tab-agents').style.display  = btn.dataset.tab === 'agents'  ? 'flex' : 'none';
+        if (btn.dataset.tab === 'agents') this.loadAgentConfig();
+      });
+    });
+    document.getElementById('tab-assets').style.display = 'flex';
+
+    // Agent position picking
+    this.pickingAgentPos = false;
+    document.getElementById('btn-pick-pos').onclick = () => {
+      const agent = document.getElementById('agent-select').value;
+      if (!agent) { this.setAgentStatus('Selecione um agente primeiro'); return; }
+      this.pickingAgentPos = true;
+      this.setAgentStatus('Clique no chão para definir a posição...');
+      document.body.classList.add('placing');
+    };
+    document.getElementById('btn-save-agents').onclick = () => this.saveAgentConfig();
 
     // Toolbar
     this.toolbar = document.createElement('div');
@@ -455,6 +501,62 @@ export default class Editor {
     if (el) el.textContent = msg;
   }
 
+  setAgentStatus(msg) {
+    const el = document.getElementById('agent-pick-status');
+    if (el) el.textContent = msg;
+  }
+
+  // ─── Agent Config ──────────────────────────────────────────────────────────
+
+  async loadAgentConfig() {
+    const res = await fetch('/api/agents').catch(() => null);
+    this.agentCfg = res ? await res.json() : {};
+    const sel = document.getElementById('agent-select');
+    sel.innerHTML = '<option value="">-- selecione agente --</option>';
+    for (const id of Object.keys(this.agentCfg)) {
+      const opt = document.createElement('option');
+      opt.value = id; opt.textContent = this.agentCfg[id].name || id;
+      sel.appendChild(opt);
+    }
+    this.renderAgentPositions();
+  }
+
+  renderAgentPositions() {
+    const list = document.getElementById('agent-positions-list');
+    if (!list || !this.agentCfg) return;
+    list.innerHTML = '';
+    for (const [id, cfg] of Object.entries(this.agentCfg)) {
+      const div = document.createElement('div');
+      div.style.cssText = 'background:#111828;border:1px solid #1e2a44;border-radius:6px;padding:8px;margin-bottom:6px;font:10px monospace;color:#778;';
+      const states = cfg.states || {};
+      div.innerHTML = `<div style="color:#aab;font-weight:bold;margin-bottom:4px;">${cfg.name || id}</div>` +
+        ['working','meeting','idle'].map(s => {
+          const st = states[s];
+          const val = !st ? '—' : st.type === 'fixed' ? `x:${st.x?.toFixed(1)} z:${st.z?.toFixed(1)}` : `${st.type}:${st.zone||''}`;
+          return `<div style="display:flex;justify-content:space-between;"><span style="color:#556;">${s}</span><span style="color:#9990ff;">${val}</span></div>`;
+        }).join('');
+      list.appendChild(div);
+    }
+  }
+
+  applyAgentFloorClick(point) {
+    const agentId = document.getElementById('agent-select').value;
+    const state   = document.getElementById('state-select').value;
+    if (!agentId || !state) return;
+    if (!this.agentCfg[agentId]) this.agentCfg[agentId] = { name: agentId, states: {} };
+    if (!this.agentCfg[agentId].states) this.agentCfg[agentId].states = {};
+    this.agentCfg[agentId].states[state] = { type: 'fixed', x: +point.x.toFixed(2), z: +point.z.toFixed(2) };
+    this.setAgentStatus(`✓ ${agentId} / ${state} → (${point.x.toFixed(1)}, ${point.z.toFixed(1)})`);
+    this.renderAgentPositions();
+  }
+
+  async saveAgentConfig() {
+    try {
+      await fetch('/api/agents', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.agentCfg) });
+      this.setAgentStatus('✓ Salvo! Recarregue para aplicar.');
+    } catch { this.setAgentStatus('Erro ao salvar'); }
+  }
+
   // ─── Save / Load ───────────────────────────────────────────────────────────
 
   async saveLayout() {
@@ -570,6 +672,16 @@ export default class Editor {
     canvas.addEventListener('click', e => {
       if (!this.active || this.tc.dragging) return;
       this.raycaster.setFromCamera(this.mouse, this.camera);
+
+      if (this.pickingAgentPos) {
+        const hits = this.raycaster.intersectObject(this.floor);
+        if (hits.length) {
+          this.applyAgentFloorClick(hits[0].point);
+          this.pickingAgentPos = false;
+          document.body.classList.remove('placing');
+        }
+        return;
+      }
 
       if (this.pendingAsset) {
         const hits = this.raycaster.intersectObject(this.floor);
