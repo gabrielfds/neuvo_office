@@ -1,0 +1,13 @@
+{
+  "jarbas": {
+    "name": "Jarbas",
+    "color": "6c63ff",
+    "desk": { "x": -3, "z": -5 },
+    "seat": { "x": -3, "z": -4.3 },
+    "states": {
+      "working": { "type": "fixed", "x": 9.5, "z": -5.4 },
+      "meeting": { "type": "zone",  "zone": "MEETING_ROOM" },
+      "idle":    { "type": "zone",  "zone": "WANDER" }
+    }
+  }
+}

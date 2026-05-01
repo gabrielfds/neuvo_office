@@ -21,48 +21,44 @@ const CORRIDOR = [
   new THREE.Vector3(-1.5, 0, -4),   new THREE.Vector3(-1.5, 0,  0),   new THREE.Vector3(-1.5, 0,  4),
 ];
 
-// ─── Config por agente ────────────────────────────────────────────────────
-// desk:    mesa atribuída (posição central)
-// seat:    onde o agente fica sentado (frente da mesa, lado do usuário)
-// states:  função que retorna o destino para cada estado
 const v = (x, y, z) => new THREE.Vector3(x, y, z);
 
-const AGENT_CONFIG = {
-  jarbas: {
-    desk: v(-3,   0, -5),
-    seat: v(-3,   0, -4.3),   // frente da mesa ROW1[2]
-    states: {
-      working: () => v(9.5,  0, -5.4),   // frente da mesa executiva na sala do chefe
-      meeting: () => randomAround(ZONES.MEETING_ROOM, 1.2),
-      idle:    () => randomAround(pickRandom(ZONES.WANDER), 0.5)
-    }
-  },
-  agent2: {
-    desk: v(-6.5, 0,  0),
-    seat: v(-6.5, 0,  0.7),   // frente da mesa ROW2[1]
-    states: {
-      working: () => v(-6.5, 0,  0.7),
-      meeting: () => randomAround(ZONES.MEETING_ROOM, 1.2),
-      idle:    () => randomAround(pickRandom(CORRIDOR), 0.4)
-    }
-  },
-  agent3: {
-    desk: v(-10,  0,  5),
-    seat: v(-10,  0,  5.7),   // frente da mesa ROW3[0]
-    states: {
-      working: () => v(-10,  0,  5.7),
-      meeting: () => randomAround(ZONES.MEETING_ROOM, 1.2),
-      idle:    () => randomAround(pickRandom(CORRIDOR), 0.4)
-    }
+// Config carregada do servidor (/api/agents)
+let AGENT_CONFIG = {};
+fetch('/api/agents').then(r => r.json()).then(data => { AGENT_CONFIG = data; }).catch(() => {});
+
+function resolveStateDest(stateCfg, desk) {
+  if (!stateCfg) return null;
+  if (stateCfg.type === 'fixed') return v(stateCfg.x, 0, stateCfg.z);
+  if (stateCfg.type === 'zone') {
+    const zone = ZONES[stateCfg.zone];
+    if (!zone) return null;
+    const point = Array.isArray(zone) ? pickRandom(zone) : zone;
+    return randomAround(point, stateCfg.radius ?? 1.0);
   }
-};
+  if (stateCfg.type === 'desk') return desk ? randomAround(desk, 0.4) : null;
+  return null;
+}
 
 function getConfig(id) {
-  return AGENT_CONFIG[id] ?? {
-    desk: pickRandom(ALL_DESK_SPOTS),
-    seat: null,
+  const raw = AGENT_CONFIG[id];
+  if (raw) {
+    const desk = raw.desk ? v(raw.desk.x, 0, raw.desk.z) : pickRandom(ALL_DESK_SPOTS);
+    const seat = raw.seat ? v(raw.seat.x, 0, raw.seat.z) : desk;
+    return {
+      desk, seat,
+      states: {
+        working: () => resolveStateDest(raw.states?.working, desk) ?? randomAround(desk, 0.4),
+        meeting: () => resolveStateDest(raw.states?.meeting, desk) ?? randomAround(ZONES.MEETING_ROOM, 1.2),
+        idle:    () => resolveStateDest(raw.states?.idle,    desk) ?? randomAround(pickRandom(CORRIDOR), 0.4),
+      }
+    };
+  }
+  const desk = pickRandom(ALL_DESK_SPOTS);
+  return {
+    desk, seat: null,
     states: {
-      working: function() { return randomAround(this.desk, 0.4); },
+      working: () => randomAround(desk, 0.4),
       meeting: () => randomAround(ZONES.MEETING_ROOM, 1.2),
       idle:    () => randomAround(pickRandom(CORRIDOR), 0.4)
     }

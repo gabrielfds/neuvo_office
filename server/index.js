@@ -8,6 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../data');
 const LAYOUT_FILE = path.join(DATA_DIR, 'layout.json');
+const AGENTS_FILE = path.join(DATA_DIR, 'agents.json');
 const ASSETS_DIR = path.join(__dirname, '../client/assets');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -55,6 +56,22 @@ app.post('/api/layout', (req, res) => {
   fs.writeFileSync(LAYOUT_FILE, JSON.stringify(req.body, null, 2));
   res.json({ ok: true });
   console.log(`Layout saved — ${req.body.objects?.length ?? 0} objects`);
+});
+
+app.get('/api/agents', (req, res) => {
+  const defaultFile = path.join(__dirname, '../data/agents.json');
+  const file = fs.existsSync(AGENTS_FILE) ? AGENTS_FILE : defaultFile;
+  try {
+    res.json(JSON.parse(fs.readFileSync(file, 'utf8')));
+  } catch {
+    res.json({});
+  }
+});
+
+app.post('/api/agents', (req, res) => {
+  fs.writeFileSync(AGENTS_FILE, JSON.stringify(req.body, null, 2));
+  res.json({ ok: true });
+  console.log('Agents config saved');
 });
 
 app.post('/api/upload', upload.array('files'), (req, res) => {
