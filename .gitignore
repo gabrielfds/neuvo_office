@@ -1,3 +1,7 @@
 node_modules/
 .env
 .claude/
+agents-state.json
+join-keys.json
+state.json
+backend/
