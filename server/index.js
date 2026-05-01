@@ -113,12 +113,15 @@ function connectToOpenClaw() {
   ws.on('message', raw => {
     try {
       const msg = JSON.parse(raw);
-      const id = msg.agentId || msg.agent || 'jarbas';
-      const t = msg.type || '';
-      if (t.includes('thinking') || t.includes('working') || t.includes('tool')) {
+      console.log('OpenClaw message:', JSON.stringify(msg));
+      const rawId = msg.agentId || msg.agent || 'jarbas';
+      // If the agent ID from OpenClaw doesn't match a known local agent, fall back to the first available
+      const id = agentState[rawId] ? rawId : (Object.keys(agentState)[0] || 'jarbas');
+      const t = (msg.type || '').toLowerCase();
+      if (t.includes('thinking') || t.includes('working') || t.includes('tool') || t.includes('start') || t.includes('message')) {
         agentState[id] = { ...agentState[id], state: 'working' };
         broadcast({ type: 'agent_state', agent: id, state: 'working' });
-      } else if (t.includes('done') || t.includes('idle') || t.includes('reply')) {
+      } else if (t.includes('done') || t.includes('idle') || t.includes('reply') || t.includes('finish') || t.includes('end') || t.includes('response')) {
         agentState[id] = { ...agentState[id], state: 'idle' };
         broadcast({ type: 'agent_state', agent: id, state: 'idle' });
       }
