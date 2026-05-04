@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Neuvo Office — Monitor</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #080b14;
+      --surface: #0f1420;
+      --border:  #1e2535;
+      --text:    #c8d0e0;
+      --muted:   #4a5570;
+      --working: #ffaa00;
+      --idle:    #00e87a;
+      --meeting: #4ab8b0;
+      --c-jarbas: #6c63ff;
+      --c-agent2: #00b4d8;
+      --c-agent3: #ff6b9d;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ────────────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+
+    .logo { font-size: 11px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; }
+    .logo em { color: #6c63ff; font-style: normal; }
+
+    .header-right { display: flex; align-items: center; gap: 20px; }
+
+    .gw-pill {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+    }
+    .gw-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--muted); transition: background 0.4s, box-shadow 0.4s;
+    }
+    .gw-dot.online  { background: var(--idle);    box-shadow: 0 0 6px var(--idle); }
+    .gw-dot.offline { background: #ff4444;         box-shadow: 0 0 6px #ff4444; }
+
+    #clock { font-size: 20px; font-weight: bold; letter-spacing: 3px; }
+
+    /* ── Layout ────────────────────────────────────────────────── */
+    main {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Agents panel ──────────────────────────────────────────── */
+    .agents-panel {
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      overflow-y: auto; padding: 16px; gap: 12px;
+    }
+
+    .panel-label {
+      font-size: 9px; letter-spacing: 2.5px;
+      color: var(--muted); text-transform: uppercase;
+      padding-bottom: 4px;
+    }
+
+    /* Agent card */
+    .agent-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px 16px;
+      position: relative; overflow: hidden;
+    }
+    .agent-card::before {
+      content: ''; position: absolute;
+      left: 0; top: 0; bottom: 0; width: 3px;
+    }
+    .agent-card[data-id="jarbas"]::before { background: var(--c-jarbas); }
+    .agent-card[data-id="agent2"]::before { background: var(--c-agent2); }
+    .agent-card[data-id="agent3"]::before { background: var(--c-agent3); }
+
+    .card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+
+    .agent-name { font-size: 15px; font-weight: bold; letter-spacing: 1px; }
+    [data-id="jarbas"] .agent-name { color: var(--c-jarbas); }
+    [data-id="agent2"] .agent-name { color: var(--c-agent2); }
+    [data-id="agent3"] .agent-name { color: var(--c-agent3); }
+
+    .state-badge {
+      display: flex; align-items: center; gap: 5px;
+      padding: 3px 9px; border-radius: 3px;
+      font-size: 10px; letter-spacing: 1px; text-transform: uppercase; font-weight: bold;
+    }
+    .s-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+    .state-badge.working { background: rgba(255,170,0,.12); color: var(--working); }
+    .state-badge.working .s-dot { background: var(--working); box-shadow: 0 0 5px var(--working); }
+    .state-badge.idle    { background: rgba(0,232,122,.10); color: var(--idle); }
+    .state-badge.idle    .s-dot { background: var(--idle);    box-shadow: 0 0 5px var(--idle); }
+    .state-badge.meeting { background: rgba(74,184,176,.10); color: var(--meeting); }
+    .state-badge.meeting .s-dot { background: var(--meeting); box-shadow: 0 0 5px var(--meeting); }
+
+    .card-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .meta-item { display: flex; flex-direction: column; gap: 2px; }
+    .meta-lbl { font-size: 9px; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; }
+    .meta-val { font-size: 12px; color: var(--text); }
+
+    /* ── Feed ──────────────────────────────────────────────────── */
+    .feed-panel { display: flex; flex-direction: column; overflow: hidden; }
+
+    .feed-head {
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+
+    .feed-list { flex: 1; overflow-y: auto; padding: 4px 0; }
+
+    .feed-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 7px 20px;
+      border-bottom: 1px solid rgba(30,37,53,.4);
+      animation: slide .25s ease;
+    }
+    @keyframes slide {
+      from { opacity: 0; transform: translateX(-10px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .f-time  { color: var(--muted); font-size: 11px; min-width: 72px; flex-shrink: 0; }
+    .f-agent { min-width: 72px; font-weight: bold; font-size: 12px; flex-shrink: 0; }
+    .feed-item[data-agent="jarbas"] .f-agent { color: var(--c-jarbas); }
+    .feed-item[data-agent="agent2"] .f-agent { color: var(--c-agent2); }
+    .feed-item[data-agent="agent3"] .f-agent { color: var(--c-agent3); }
+
+    .f-arrow { color: var(--muted); font-size: 11px; }
+    .f-state { font-size: 11px; font-weight: bold; letter-spacing: .5px; }
+    .f-state.working { color: var(--working); }
+    .f-state.idle    { color: var(--idle); }
+    .f-state.meeting { color: var(--meeting); }
+
+    .f-gw { font-size: 11px; color: var(--muted); font-style: italic; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .empty { padding: 32px 20px; text-align: center; color: var(--muted); font-size: 11px; letter-spacing: 1px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><em>NEUVO</em> OFFICE — MONITOR</div>
+  <div class="header-right">
+    <div class="gw-pill">
+      <div class="gw-dot" id="gw-dot"></div>
+      <span id="gw-text">aguardando</span>
+    </div>
+    <div id="clock">--:--:--</div>
+  </div>
+</header>
+
+<main>
+  <div class="agents-panel">
+    <div class="panel-label">Agentes</div>
+    <div id="agents-container"><div class="empty">conectando...</div></div>
+  </div>
+
+  <div class="feed-panel">
+    <div class="feed-head"><div class="panel-label">Feed de Atividade</div></div>
+    <div class="feed-list" id="feed-list"><div class="empty">aguardando eventos...</div></div>
+  </div>
+</main>
+
+<script>
+// ── Clock ──────────────────────────────────────────────────────────────────
+const clockEl = document.getElementById('clock');
+function tick() { clockEl.textContent = new Date().toLocaleTimeString('pt-BR'); }
+tick(); setInterval(tick, 1000);
+
+// ── State ──────────────────────────────────────────────────────────────────
+const agents  = {};
+const MAX_FEED = 150;
+
+const LABELS = { working: 'trabalhando', idle: 'aguardando', meeting: 'em reunião' };
+const label  = s => LABELS[s] || s;
+
+function timeSince(ts) {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60)   return `${s}s`;
+  if (s < 3600) return `${Math.floor(s/60)}m ${s%60}s`;
+  return `${Math.floor(s/3600)}h ${Math.floor((s%3600)/60)}m`;
+}
+
+// ── Render cards ───────────────────────────────────────────────────────────
+function renderAgents() {
+  const box = document.getElementById('agents-container');
+  const list = Object.values(agents);
+  if (!list.length) { box.innerHTML = '<div class="empty">nenhum agente conectado</div>'; return; }
+
+  box.innerHTML = '';
+  list.forEach(a => {
+    const card = document.createElement('div');
+    card.className = 'agent-card';
+    card.dataset.id = a.id;
+    card.innerHTML = `
+      <div class="card-top">
+        <div class="agent-name">${a.name}</div>
+        <div class="state-badge ${a.state}">
+          <div class="s-dot"></div>${label(a.state)}
+        </div>
+      </div>
+      <div class="card-meta">
+        <div class="meta-item">
+          <div class="meta-lbl">No estado há</div>
+          <div class="meta-val" data-since="${a.since}">${timeSince(a.since)}</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-lbl">Último evento</div>
+          <div class="meta-val">${a.lastAt || '—'}</div>
+        </div>
+      </div>`;
+    box.appendChild(card);
+  });
+}
+
+setInterval(() => {
+  document.querySelectorAll('[data-since]').forEach(el => {
+    el.textContent = timeSince(+el.dataset.since);
+  });
+}, 1000);
+
+// ── Feed ───────────────────────────────────────────────────────────────────
+function pushFeed(item) {
+  const list = document.getElementById('feed-list');
+  list.querySelector('.empty')?.remove();
+
+  const el = document.createElement('div');
+  el.className = 'feed-item';
+
+  if (item.type === 'gateway') {
+    el.innerHTML = `
+      <span class="f-time">${item.time}</span>
+      <span class="f-gw">gateway → ${item.status === 'connected' ? 'conectado' : 'desconectado'}</span>`;
+  } else {
+    el.dataset.agent = item.agent;
+    const name = agents[item.agent]?.name || item.agent;
+    el.innerHTML = `
+      <span class="f-time">${item.time}</span>
+      <span class="f-agent">${name}</span>
+      <span class="f-arrow">→</span>
+      <span class="f-state ${item.state}">${label(item.state)}</span>`;
+  }
+
+  list.insertBefore(el, list.firstChild);
+  const items = list.querySelectorAll('.feed-item');
+  if (items.length > MAX_FEED) items[items.length - 1].remove();
+}
+
+// ── Gateway pill ───────────────────────────────────────────────────────────
+const gwDot  = document.getElementById('gw-dot');
+const gwText = document.getElementById('gw-text');
+
+function setGateway(online) {
+  gwDot.className = 'gw-dot ' + (online ? 'online' : 'offline');
+  gwText.textContent = online ? 'openclaw online' : 'gateway offline';
+}
+
+// ── Load history ───────────────────────────────────────────────────────────
+async function loadHistory() {
+  try {
+    const { agents: list, gateway, log } = await fetch('/api/status').then(r => r.json());
+    list.forEach(a => { agents[a.id] = { ...a, since: Date.now(), lastAt: '—' }; });
+    renderAgents();
+    setGateway(gateway);
+
+    // show oldest first (feed inserts at top, so iterate newest→oldest for correct order)
+    [...log].reverse().forEach(e => {
+      const time = new Date(e.ts).toLocaleTimeString('pt-BR');
+      pushFeed(e.type === 'gateway'
+        ? { type: 'gateway', status: e.status, time }
+        : { type: 'agent_state', agent: e.agent, state: e.state, time });
+    });
+  } catch { /* server not ready yet, ws will handle it */ }
+}
+
+// ── WebSocket ──────────────────────────────────────────────────────────────
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  let ws;
+  try { ws = new WebSocket(`${proto}//${location.host}`); }
+  catch (_) { setTimeout(connect, 3000); return; }
+
+  ws.onopen = () => {
+    gwDot.className = 'gw-dot';
+    gwText.textContent = 'servidor online';
+  };
+
+  ws.onmessage = ({ data }) => {
+    const msg  = JSON.parse(data);
+    const time = new Date().toLocaleTimeString('pt-BR');
+
+    if (msg.type === 'init') {
+      msg.agents.forEach(a => { agents[a.id] = { ...a, since: Date.now(), lastAt: '—' }; });
+      renderAgents();
+
+    } else if (msg.type === 'agent_state') {
+      if (agents[msg.agent]) {
+        agents[msg.agent].state  = msg.state;
+        agents[msg.agent].since  = Date.now();
+        agents[msg.agent].lastAt = time;
+      }
+      renderAgents();
+      pushFeed({ type: 'agent_state', agent: msg.agent, state: msg.state, time });
+
+    } else if (msg.type === 'gateway') {
+      setGateway(msg.status === 'connected');
+      pushFeed({ type: 'gateway', status: msg.status, time });
+    }
+  };
+
+  ws.onclose = () => {
+    gwDot.className = 'gw-dot offline';
+    gwText.textContent = 'servidor offline';
+    setTimeout(connect, 3000);
+  };
+}
+
+loadHistory().then(connect);
+</script>
+</body>
+</html>

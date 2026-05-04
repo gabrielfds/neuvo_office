@@ -86,6 +86,9 @@ app.post('/api/upload', upload.array('files'), (req, res) => {
 const server = app.listen(PORT, () => console.log(`Neuvo Office running on port ${PORT}`));
 const wss = new WebSocketServer({ server });
 const clients = new Set();
+const eventLog = [];
+const MAX_LOG  = 200;
+let gatewayConnected = false;
 
 const OPENCLAW_WS    = process.env.OPENCLAW_WS    || 'wss://n8n-dashboard-openclaw.ul4z9e.easypanel.host';
 const OPENCLAW_TOKEN = process.env.OPENCLAW_TOKEN || '9676df9685f924b552f7865808b705c5fbad35c27e4efc6d';
@@ -94,10 +97,19 @@ const agentState = {
   jarbas: { id: 'jarbas', name: 'Jarbas', state: 'idle', color: 0x6c63ff }
 };
 
+function logEvent(data) {
+  eventLog.push({ ts: Date.now(), ...data });
+  if (eventLog.length > MAX_LOG) eventLog.shift();
+}
+
 function broadcast(data) {
   const msg = JSON.stringify(data);
   for (const c of clients) if (c.readyState === WebSocket.OPEN) c.send(msg);
 }
+
+app.get('/api/status', (req, res) => {
+  res.json({ agents: Object.values(agentState), gateway: gatewayConnected, log: eventLog });
+});
 
 function connectToOpenClaw() {
   let ws;
@@ -108,7 +120,12 @@ function connectToOpenClaw() {
     return;
   }
 
-  ws.on('open', () => { console.log('Connected to OpenClaw gateway'); broadcast({ type: 'gateway', status: 'connected' }); });
+  ws.on('open', () => {
+    console.log('Connected to OpenClaw gateway');
+    gatewayConnected = true;
+    broadcast({ type: 'gateway', status: 'connected' });
+    logEvent({ type: 'gateway', status: 'connected' });
+  });
 
   ws.on('message', raw => {
     try {
@@ -118,16 +135,20 @@ function connectToOpenClaw() {
       if (t.includes('thinking') || t.includes('working') || t.includes('tool')) {
         agentState[id] = { ...agentState[id], state: 'working' };
         broadcast({ type: 'agent_state', agent: id, state: 'working' });
+        logEvent({ type: 'agent_state', agent: id, state: 'working' });
       } else if (t.includes('done') || t.includes('idle') || t.includes('reply')) {
         agentState[id] = { ...agentState[id], state: 'idle' };
         broadcast({ type: 'agent_state', agent: id, state: 'idle' });
+        logEvent({ type: 'agent_state', agent: id, state: 'idle' });
       }
     } catch (_) {}
   });
 
   ws.on('close', (code, reason) => {
     console.log(`OpenClaw disconnected — code: ${code}, reason: ${reason?.toString() || 'none'} — reconnecting in 10s`);
+    gatewayConnected = false;
     broadcast({ type: 'gateway', status: 'disconnected' });
+    logEvent({ type: 'gateway', status: 'disconnected' });
     setTimeout(connectToOpenClaw, 10000);
   });
 
